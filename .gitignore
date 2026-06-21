@@ -28,7 +28,6 @@ postcss.config.js
 
 # Prisma
 /prisma/dev.db
-/prisma/migrations/
 **/schema.prisma.lock
 *.db
 *.sqlite
@@ -79,3 +78,11 @@ logs/
 tmp/
 temp/
 dist-lambda/
+
+# CodeValid — auto-added
+.next/
+out/
+.turbo/
+__pycache__/
+.pytest_cache/
+.venv/
