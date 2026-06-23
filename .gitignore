@@ -4,7 +4,7 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 npm-debug.log*
-package-lock.json
+# package-lock.json intentionally NOT ignored — kept so npm ci can use it in Docker build (§3.3)
 yarn.lock
 pnpm-lock.yaml
 .env
@@ -34,7 +34,7 @@ postcss.config.js
 
 # PostgreSQL
 *.psql
-*.sql
+# *.sql intentionally NOT ignored — prisma/migrations/*.sql must be in build context (§4.1)
 pgdata/
 
 # JWT auth
