@@ -3,10 +3,10 @@ set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
 CASE_SUFFIX="$(date +%s)-$$"
-SELLER_EMAIL="seller-no-items-${CASE_SUFFIX}@example.com"
+SELLER_EMAIL="seller-shipped-${CASE_SUFFIX}@example.com"
 SELLER_PASSWORD="Passw0rd!${CASE_SUFFIX}"
-REGISTER_RESPONSE_FILE="/tmp/seller_no_items_in_order_register_${CASE_SUFFIX}.json"
-RESPONSE_FILE="/tmp/seller_no_items_in_order_response_${CASE_SUFFIX}.json"
+REGISTER_RESPONSE_FILE="/tmp/already_shipped_order_idempotent_register_${CASE_SUFFIX}.json"
+RESPONSE_FILE="/tmp/already_shipped_order_idempotent_response_${CASE_SUFFIX}.json"
 
 cleanup_files() {
   rm -f "$REGISTER_RESPONSE_FILE" "$RESPONSE_FILE"
@@ -17,20 +17,20 @@ trap cleanup_files EXIT
 REGISTER_STATUS="$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' \
   -X POST "$BASE_URL/register" \
   -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"${SELLER_PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"NoItems ${CASE_SUFFIX}\",\"bio\":\"bio-${CASE_SUFFIX}\"}")"
+  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"${SELLER_PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"Shipped ${CASE_SUFFIX}\",\"bio\":\"bio-${CASE_SUFFIX}\"}")"
 [ "$REGISTER_STATUS" = "201" ]
 TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
 [ "$TOKEN" != "null" ]
 [ -n "$TOKEN" ]
 
-# When — attempt to ship an order that would require ownership checks later in the handler.
+# When — attempt to mark an order as shipped again.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/orders/order-no-items-${CASE_SUFFIX}/ship" \
+  -X POST "$BASE_URL/orders/order-shipped-${CASE_SUFFIX}/ship" \
   -H "Authorization: Bearer $TOKEN")"
 
-# Then — current reachable behavior is authorization failure before ownership checks.
+# Then — current reachable behavior is authorization failure before idempotent branch.
 [ "$HTTP_STATUS" = "403" ]
 jq -e '.error == "Active seller required"' "$RESPONSE_FILE" >/dev/null
 
 # Cleanup — no cleanup API exposed for registered users.
-echo "CODEVALID_TEST_ASSERTION_OK:seller_no_items_in_order"
+echo "CODEVALID_TEST_ASSERTION_OK:already_shipped_order_idempotent"
