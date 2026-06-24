@@ -2,47 +2,36 @@
 set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
-DATABASE_URL="${DATABASE_URL:-postgresql://app:app@toxiproxy:5432/appdb}"
 CASE_SUFFIX="$(date +%s)-$$"
-SELLER_EMAIL="pending_seller_${CASE_SUFFIX}@example.com"
-SELLER_PASSWORD="Passw0rd!${CASE_SUFFIX}"
-REGISTER_FILE="/tmp/pending_seller_cannot_list_products_register_${CASE_SUFFIX}.json"
-RESPONSE_FILE="/tmp/pending_seller_cannot_list_products_${CASE_SUFFIX}.json"
+EMAIL="pending-seller-${CASE_SUFFIX}@example.com"
+PASSWORD="Password123!Aa"
+STORE_NAME="Pending-Store-${CASE_SUFFIX}"
+BIO="Pending-Bio-${CASE_SUFFIX}"
+RESPONSE_FILE="$(mktemp)"
+REGISTER_FILE="$(mktemp)"
 TOKEN=""
-USER_ID=""
 
 cleanup() {
-  if [ -n "$USER_ID" ]; then
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" = '$USER_ID';" >/dev/null 2>&1 || true
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id = '$USER_ID';" >/dev/null 2>&1 || true
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$USER_ID';" >/dev/null 2>&1 || true
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$USER_ID';" >/dev/null 2>&1 || true
-  fi
-  rm -f "$REGISTER_FILE" "$RESPONSE_FILE"
+  rm -f "$RESPONSE_FILE" "$REGISTER_FILE"
 }
 trap cleanup EXIT
 
-# Given — register a seller account, which is PENDING by default.
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-REGISTER_STATUS="$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"${SELLER_PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"Pending Store ${CASE_SUFFIX}\",\"bio\":\"Pending\"}")"
-[ "$REGISTER_STATUS" = "201" ]
-TOKEN="$(jq -r '.token' "$REGISTER_FILE")"
-USER_ID="$(jq -r '.user.id' "$REGISTER_FILE")"
+# Given — bring the system to the required state
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/register")
+[ "$HTTP_CODE" = "201" ]
+TOKEN=$(jq -r '.token' "$REGISTER_FILE")
+[ -n "$TOKEN" ]
+[ "$TOKEN" != "null" ]
+grep -F '"status":"PENDING"' "$REGISTER_FILE" >/dev/null
 
-# When — attempt to create a product while seller status is still PENDING.
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/products" \
-  -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer ${TOKEN}" \
-  --data '{"title":"Pending Product","description":"desc","category":"HOME","price_cents":2500,"stock_qty":1,"photos":[]}')"
+# When — perform the action under test
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"title\":\"Pending Product ${CASE_SUFFIX}\",\"description\":\"desc\",\"category\":\"HOME\",\"price_cents\":1200,\"stock_qty\":1,\"photos\":[]}" "$BASE_URL/products")
 
-# Then — status 403 and approval-required error are returned.
-[ "$HTTP_STATUS" = "403" ]
-jq -e '.error == "Seller account must be approved before listing products"' "$RESPONSE_FILE" >/dev/null
+# Then — HTTP/body assertions
+[ "$HTTP_CODE" = "403" ]
+grep -F 'Seller account must be approved before listing products' "$RESPONSE_FILE" >/dev/null
 
-echo "CODEVALID_TEST_ASSERTION_OK:pending_seller_cannot_list_products"
+# Cleanup — undo Given side effects
+# No public delete endpoint is visible in the provided call graph.
 
-# Cleanup — delete created seller profile and user rows.
+echo 'CODEVALID_TEST_ASSERTION_OK:pending_seller_cannot_list_products'

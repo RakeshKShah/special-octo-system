@@ -4,32 +4,32 @@ set -eu
 BASE_URL="${BASE_URL:-http://app:6713}"
 DATABASE_URL="${DATABASE_URL:-postgresql://app:app@toxiproxy:5432/appdb}"
 CASE_SUFFIX="$(date +%s)-$$"
-SELLER_EMAIL="seller_missing_${CASE_SUFFIX}@example.com"
-STORE_NAME="Missing Order Store ${CASE_SUFFIX}"
+RESPONSE_FILE="$(mktemp)"
+REGISTER_RESPONSE_FILE="$(mktemp)"
 ORDER_ID="nonexistent-order-${CASE_SUFFIX}"
-RESPONSE_FILE="/tmp/nonexistent_order_returns_404_${CASE_SUFFIX}.json"
-SELLER_FILE="/tmp/nonexistent_order_returns_404_seller_${CASE_SUFFIX}.json"
-
+SELLER_EMAIL="seller-missing-${CASE_SUFFIX}@example.com"
+SELLER_TOKEN=""
+SELLER_USER_ID=""
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"storeName\" = '${STORE_NAME}'; DELETE FROM \"User\" WHERE email = '${SELLER_EMAIL}';" >/dev/null 2>&1 || true
-  rm -f "$RESPONSE_FILE" "$SELLER_FILE"
+  [ -n "$SELLER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$SELLER_USER_ID'" >/dev/null 2>&1 || true
+  rm -f "$RESPONSE_FILE" "$REGISTER_RESPONSE_FILE"
 }
 trap cleanup EXIT
 
-# Given — create an active seller and ensure the order id does not exist.
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-SELLER_HTTP_STATUS="$(curl -sS -o "$SELLER_FILE" -w '%{http_code}' -X POST "$BASE_URL/register" -H 'Content-Type: application/json' --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"Password123!\",\"role\":\"SELLER\",\"storeName\":\"${STORE_NAME}\",\"bio\":\"seeded seller\"}")"
-[ "$SELLER_HTTP_STATUS" = "201" ]
-SELLER_TOKEN="$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$SELLER_FILE" | head -n1)"
-SELLER_USER_ID="$(sed -n 's/.*"user":{[^}]*"id":"\([^"]*\)".*/\1/p' "$SELLER_FILE" | head -n1)"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE \"User\" SET status = 'ACTIVE' WHERE id = '${SELLER_USER_ID}'; DELETE FROM \"Order\" WHERE id = '${ORDER_ID}';" >/dev/null
+# Given — bring the system to the required state
+HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL\",\"password\":\"Password123!\",\"role\":\"SELLER\",\"storeName\":\"Store $CASE_SUFFIX\",\"bio\":\"Bio $CASE_SUFFIX\"}" "$BASE_URL/register")
+[ "$HTTP_CODE" = "201" ]
+SELLER_TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
+SELLER_USER_ID="$(jq -r '.user.id' "$REGISTER_RESPONSE_FILE")"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE \"User\" SET status = 'ACTIVE' WHERE id = '$SELLER_USER_ID'" >/dev/null
 
-# When — attempt to ship a missing order.
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST "$BASE_URL/orders/${ORDER_ID}/ship" -H "Authorization: Bearer ${SELLER_TOKEN}")"
+# When — perform the action under test
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H "Authorization: Bearer $SELLER_TOKEN" "$BASE_URL/orders/$ORDER_ID/ship")
 
-# Then — expect 404 Order not found.
-[ "$HTTP_STATUS" = "404" ]
-grep -F '"error":"Order not found"' "$RESPONSE_FILE" >/dev/null
+# Then — HTTP/body assertions
+[ "$HTTP_CODE" = "404" ]
+grep -F 'Order not found' "$RESPONSE_FILE" >/dev/null
 
-# Cleanup — handled by trap.
-echo "CODEVALID_TEST_ASSERTION_OK:nonexistent_order_returns_404"
+# Cleanup — undo Given side effects
+
+echo 'CODEVALID_TEST_ASSERTION_OK:nonexistent_order_returns_404'

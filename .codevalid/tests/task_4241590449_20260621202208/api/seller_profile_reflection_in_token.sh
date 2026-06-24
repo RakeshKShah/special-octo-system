@@ -2,41 +2,32 @@
 set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
-DATABASE_URL="${DATABASE_URL:-postgresql://app:app@toxiproxy:5432/appdb}"
 CASE_SUFFIX="$(date +%s)-$$"
-EMAIL="seller-token-${CASE_SUFFIX}@example.com"
-RESPONSE_FILE="/tmp/seller_profile_reflection_in_token_${CASE_SUFFIX}.json"
-PAYLOAD_FILE="/tmp/seller_profile_reflection_in_token_payload_${CASE_SUFFIX}.json"
+TEST_EMAIL="seller-token-${CASE_SUFFIX}@example.com"
+RESPONSE_FILE="$(mktemp)"
+PAYLOAD_FILE="$(mktemp)"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${EMAIL}');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${EMAIL}';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$PAYLOAD_FILE"
 }
 trap cleanup EXIT
 
-# Given — ensure unique seller email and DB connectivity
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${EMAIL}');" >/dev/null 2>&1 || true
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${EMAIL}';" >/dev/null 2>&1 || true
+# Given — no pre-existing user for the generated email
 
-# When — register seller and decode JWT payload
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${EMAIL}\",\"password\":\"SellerPass123!\",\"role\":\"SELLER\",\"storeName\":\"Token Shop\",\"bio\":\"Testing token\"}")"
-TOKEN="$(jq -r '.token' "$RESPONSE_FILE")"
-USER_SELLER_PROFILE_ID="$(jq -r '.user.sellerProfile.id' "$RESPONSE_FILE")"
-PAYLOAD_B64="$(printf '%s' "$TOKEN" | cut -d '.' -f 2)"
-PAYLOAD_B64_PADDED="$(printf '%s' "$PAYLOAD_B64" | awk '{ l=length($0)%4; if (l==2) printf "%s==", $0; else if (l==3) printf "%s=", $0; else if (l==1) printf "%s===", $0; else printf "%s", $0; }')"
-printf '%s' "$PAYLOAD_B64_PADDED" | tr '_-' '/+' | base64 -d > "$PAYLOAD_FILE"
+# When — register a seller and capture the issued token
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"SellerPass123!","role":"SELLER","storeName":"Token Shop","bio":"Testing token"}" "$BASE_URL/register")
 
-# Then — assert sellerProfileId claim matches response seller profile id
-[ "$HTTP_STATUS" = "201" ]
+# Then — assert token payload contains matching sellerProfileId
+[ "$HTTP_CODE" = "201" ]
+grep -F '"token"' "$RESPONSE_FILE" >/dev/null
+TOKEN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["token"])' "$RESPONSE_FILE")
+SELLER_PROFILE_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["user"]["sellerProfile"]["id"])' "$RESPONSE_FILE")
 [ -n "$TOKEN" ]
-[ "$USER_SELLER_PROFILE_ID" != "null" ]
-jq -e --arg spid "$USER_SELLER_PROFILE_ID" '.sellerProfileId == $spid' "$PAYLOAD_FILE" >/dev/null
+[ -n "$SELLER_PROFILE_ID" ]
+TOKEN_PAYLOAD_B64=$(printf '%s' "$TOKEN" | cut -d '.' -f 2)
+python3 -c 'import base64,sys; payload=sys.argv[1]; payload += "=" * (-len(payload) % 4); sys.stdout.write(base64.urlsafe_b64decode(payload.encode()).decode())' "$TOKEN_PAYLOAD_B64" > "$PAYLOAD_FILE"
+grep -F '"sellerProfileId":"'"$SELLER_PROFILE_ID"'"' "$PAYLOAD_FILE" >/dev/null
 
-echo "CODEVALID_TEST_ASSERTION_OK:seller_profile_reflection_in_token"
+# Cleanup — no reversible public cleanup endpoint available
 
-# Cleanup — handled by trap
+echo 'CODEVALID_TEST_ASSERTION_OK:seller_profile_reflection_in_token'

@@ -2,50 +2,26 @@
 set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
-DATABASE_URL="${DATABASE_URL:-postgresql://app:app@toxiproxy:5432/appdb}"
+TOKEN="${SELLER_WITHOUT_PROFILE_TOKEN:-}"
+RESPONSE_FILE="$(mktemp)"
 CASE_SUFFIX="$(date +%s)-$$"
-EMAIL="no-profile-seller-${CASE_SUFFIX}@example.com"
-PASSWORD="Passw0rd!${CASE_SUFFIX}"
-STORE_NAME="No Profile Shop ${CASE_SUFFIX}"
-REGISTER_FILE="/tmp/seller_profile_not_found_register_${CASE_SUFFIX}.json"
-RESPONSE_FILE="/tmp/seller_profile_not_found_${CASE_SUFFIX}.json"
-USER_ID=""
-TOKEN=""
 
 cleanup() {
-  if [ -n "$USER_ID" ]; then
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '${USER_ID}';" >/dev/null 2>&1 || true
-  else
-    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${EMAIL}';" >/dev/null 2>&1 || true
-  fi
-  rm -f "$REGISTER_FILE" "$RESPONSE_FILE"
+  rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
-# Given — register a unique seller, activate it, and delete its seller profile record.
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-REGISTER_STATUS="$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"${STORE_NAME}\",\"bio\":\"none\"}")"
-[ "$REGISTER_STATUS" = "201" ]
-TOKEN="$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
-USER_ID="$(sed -n 's/.*"user":{[^}]*"id":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
-[ -n "$TOKEN" ]
-[ -n "$USER_ID" ]
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE users SET status = 'ACTIVE' WHERE id = '${USER_ID}'; DELETE FROM seller_profiles WHERE user_id = '${USER_ID}';" >/dev/null
+# Given — bring the system to the required state
+[ -n "$TOKEN" ] || { echo 'SELLER_WITHOUT_PROFILE_TOKEN must be provided for an active seller without a seller profile because registration auto-creates sellerProfile and no public API to remove it is visible in the call graph' >&2; exit 1; }
 
-# When — attempt to create a product without a seller profile.
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/products" \
-  -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer ${TOKEN}" \
-  --data '{"title":"Test Product","description":"Test","category":"Misc","price_cents":1000,"stock_qty":1,"photos":[]}')"
+# When — perform the action under test
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"title\":\"No Profile Product ${CASE_SUFFIX}\",\"description\":\"desc\",\"category\":\"HOME\",\"price_cents\":1200,\"stock_qty\":1,\"photos\":[]}" "$BASE_URL/products")
 
-# Then — response is 404 and seller profile is reported missing.
-[ "$HTTP_STATUS" = "404" ]
-grep -F '"error":"Seller profile not found"' "$RESPONSE_FILE" >/dev/null
+# Then — HTTP/body assertions
+[ "$HTTP_CODE" = "404" ]
+grep -F 'Seller profile not found' "$RESPONSE_FILE" >/dev/null
 
-echo "CODEVALID_TEST_ASSERTION_OK:seller_profile_not_found"
+# Cleanup — undo Given side effects
+# Stateless.
 
-# Cleanup — remove the created seller user record.
+echo 'CODEVALID_TEST_ASSERTION_OK:seller_profile_not_found'

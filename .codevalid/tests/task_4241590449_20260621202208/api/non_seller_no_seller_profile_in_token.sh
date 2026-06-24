@@ -2,39 +2,30 @@
 set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
-DATABASE_URL="${DATABASE_URL:-postgresql://app:app@toxiproxy:5432/appdb}"
 CASE_SUFFIX="$(date +%s)-$$"
-EMAIL="buyer-token-${CASE_SUFFIX}@example.com"
-RESPONSE_FILE="/tmp/non_seller_no_seller_profile_in_token_${CASE_SUFFIX}.json"
-PAYLOAD_FILE="/tmp/non_seller_no_seller_profile_in_token_payload_${CASE_SUFFIX}.json"
+TEST_EMAIL="buyer-token-${CASE_SUFFIX}@example.com"
+RESPONSE_FILE="$(mktemp)"
+PAYLOAD_FILE="$(mktemp)"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${EMAIL}';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$PAYLOAD_FILE"
 }
 trap cleanup EXIT
 
-# Given — ensure unique buyer email and DB connectivity
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${EMAIL}';" >/dev/null 2>&1 || true
+# Given — no pre-existing user for the generated email
 
-# When — register buyer and decode JWT payload
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${EMAIL}\",\"password\":\"BuyerPass123!\",\"role\":\"BUYER\"}")"
-TOKEN="$(jq -r '.token' "$RESPONSE_FILE")"
-PAYLOAD_B64="$(printf '%s' "$TOKEN" | cut -d '.' -f 2)"
-PAYLOAD_B64_PADDED="$(printf '%s' "$PAYLOAD_B64" | awk '{ l=length($0)%4; if (l==2) printf "%s==", $0; else if (l==3) printf "%s=", $0; else if (l==1) printf "%s===", $0; else printf "%s", $0; }')"
-printf '%s' "$PAYLOAD_B64_PADDED" | tr '_-' '/+' | base64 -d > "$PAYLOAD_FILE"
+# When — register a buyer and capture the issued token
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"BuyerPass123!","role":"BUYER"}" "$BASE_URL/register")
 
-# Then — assert sellerProfileId absent or null for non-seller token
-[ "$HTTP_STATUS" = "201" ]
+# Then — assert sellerProfileId is absent or null in the buyer token payload
+[ "$HTTP_CODE" = "201" ]
+grep -F '"token"' "$RESPONSE_FILE" >/dev/null
+TOKEN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["token"])' "$RESPONSE_FILE")
 [ -n "$TOKEN" ]
-if jq -e 'has("sellerProfileId")' "$PAYLOAD_FILE" >/dev/null; then
-  jq -e '.sellerProfileId == null' "$PAYLOAD_FILE" >/dev/null
-fi
+TOKEN_PAYLOAD_B64=$(printf '%s' "$TOKEN" | cut -d '.' -f 2)
+python3 -c 'import base64,sys; payload=sys.argv[1]; payload += "=" * (-len(payload) % 4); sys.stdout.write(base64.urlsafe_b64decode(payload.encode()).decode())' "$TOKEN_PAYLOAD_B64" > "$PAYLOAD_FILE"
+if grep -F '"sellerProfileId"' "$PAYLOAD_FILE" >/dev/null; then grep -F '"sellerProfileId":null' "$PAYLOAD_FILE" >/dev/null; fi
 
-echo "CODEVALID_TEST_ASSERTION_OK:non_seller_no_seller_profile_in_token"
+# Cleanup — no reversible public cleanup endpoint available
 
-# Cleanup — handled by trap
+echo 'CODEVALID_TEST_ASSERTION_OK:non_seller_no_seller_profile_in_token'

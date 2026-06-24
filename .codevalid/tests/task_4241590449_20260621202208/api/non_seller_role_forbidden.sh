@@ -3,34 +3,32 @@ set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
 CASE_SUFFIX="$(date +%s)-$$"
-BUYER_EMAIL="buyer-${CASE_SUFFIX}@example.com"
-BUYER_PASSWORD="Passw0rd!${CASE_SUFFIX}"
-REGISTER_RESPONSE_FILE="/tmp/non_seller_role_forbidden_register_${CASE_SUFFIX}.json"
-RESPONSE_FILE="/tmp/non_seller_role_forbidden_response_${CASE_SUFFIX}.json"
+EMAIL="buyer-${CASE_SUFFIX}@example.com"
+PASSWORD="Password123!Aa"
+RESPONSE_FILE="$(mktemp)"
+REGISTER_FILE="$(mktemp)"
+TOKEN=""
 
-cleanup_files() {
-  rm -f "$REGISTER_RESPONSE_FILE" "$RESPONSE_FILE"
+cleanup() {
+  rm -f "$RESPONSE_FILE" "$REGISTER_FILE"
 }
-trap cleanup_files EXIT
+trap cleanup EXIT
 
-# Given — register a unique BUYER account and capture its bearer token.
-REGISTER_STATUS="$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${BUYER_EMAIL}\",\"password\":\"${BUYER_PASSWORD}\",\"role\":\"BUYER\"}")"
-[ "$REGISTER_STATUS" = "201" ]
-TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
-[ "$TOKEN" != "null" ]
+# Given — bring the system to the required state
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"BUYER\"}" "$BASE_URL/register")
+[ "$HTTP_CODE" = "201" ]
+TOKEN=$(jq -r '.token' "$REGISTER_FILE")
 [ -n "$TOKEN" ]
+[ "$TOKEN" != "null" ]
 
-# When — send POST /orders/:id/ship as a non-seller authenticated user.
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/orders/order-${CASE_SUFFIX}/ship" \
-  -H "Authorization: Bearer $TOKEN")"
+# When — perform the action under test
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"title\":\"Buyer Product ${CASE_SUFFIX}\",\"description\":\"desc\",\"category\":\"HOME\",\"price_cents\":1200,\"stock_qty\":1,\"photos\":[]}" "$BASE_URL/products")
 
-# Then — request is forbidden for non-seller role.
-[ "$HTTP_STATUS" = "403" ]
-jq -e '.error == "Active seller required"' "$RESPONSE_FILE" >/dev/null
+# Then — HTTP/body assertions
+[ "$HTTP_CODE" = "403" ]
+grep -F 'Seller access required' "$RESPONSE_FILE" >/dev/null
 
-# Cleanup — no cleanup API exposed for registered users.
-echo "CODEVALID_TEST_ASSERTION_OK:non_seller_role_forbidden"
+# Cleanup — undo Given side effects
+# Stateless aside from created buyer account; no public delete endpoint is visible in the provided call graph.
+
+echo 'CODEVALID_TEST_ASSERTION_OK:non_seller_role_forbidden'

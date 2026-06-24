@@ -3,24 +3,24 @@ set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
 CASE_SUFFIX="$(date +%s)-$$"
-RESPONSE_FILE="/tmp/short_password_rejection_${CASE_SUFFIX}.json"
+TEST_EMAIL="shortpass-${CASE_SUFFIX}@example.com"
+RESPONSE_FILE="$(mktemp)"
 
 cleanup() {
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
-# Given — stateless validation scenario
-:
+# Given — no pre-existing user for the generated email
 
-# When — submit a too-short password
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data '{"email":"shortpass@example.com","password":"abc","role":"SELLER"}')"
+# When — register with a too-short password
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"abc","role":"SELLER"}" "$BASE_URL/register")
 
-# Then — assert validation failure response
-[ "$HTTP_STATUS" = "400" ]
-jq -e '.error | type == "string" and length > 0' "$RESPONSE_FILE" >/dev/null
+# Then — assert password validation failure
+[ "$HTTP_CODE" = "400" ]
+grep -F '"error"' "$RESPONSE_FILE" >/dev/null
+if grep -Ei 'password|short|least|min' "$RESPONSE_FILE" >/dev/null; then :; else cat "$RESPONSE_FILE"; exit 1; fi
 
-echo "CODEVALID_TEST_ASSERTION_OK:short_password_rejection"
+# Cleanup — no reversible public cleanup endpoint available
+
+echo 'CODEVALID_TEST_ASSERTION_OK:short_password_rejection'

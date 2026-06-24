@@ -3,24 +3,23 @@ set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
 CASE_SUFFIX="$(date +%s)-$$"
-RESPONSE_FILE="/tmp/missing_required_fields_${CASE_SUFFIX}.json"
+RESPONSE_FILE="$(mktemp)"
 
 cleanup() {
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
-# Given — stateless validation scenario
-:
+# Given — no specific setup required
 
-# When — submit empty registration payload
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data '{}')"
+# When — submit an empty registration payload
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{}" "$BASE_URL/register")
 
-# Then — assert validation failure response
-[ "$HTTP_STATUS" = "400" ]
-jq -e '.error | type == "string" and length > 0' "$RESPONSE_FILE" >/dev/null
+# Then — assert validation failure is returned
+[ "$HTTP_CODE" = "400" ]
+grep -F '"error"' "$RESPONSE_FILE" >/dev/null
+if grep -Ei 'email|password|required|invalid' "$RESPONSE_FILE" >/dev/null; then :; else cat "$RESPONSE_FILE"; exit 1; fi
 
-echo "CODEVALID_TEST_ASSERTION_OK:missing_required_fields"
+# Cleanup — stateless request only
+
+echo 'CODEVALID_TEST_ASSERTION_OK:missing_required_fields'

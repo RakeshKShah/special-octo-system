@@ -3,24 +3,24 @@ set -eu
 
 BASE_URL="${BASE_URL:-http://app:6713}"
 CASE_SUFFIX="$(date +%s)-$$"
-RESPONSE_FILE="/tmp/invalid_role_value_${CASE_SUFFIX}.json"
+TEST_EMAIL="unknown-role-${CASE_SUFFIX}@example.com"
+RESPONSE_FILE="$(mktemp)"
 
 cleanup() {
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
-# Given — stateless validation scenario
-:
+# Given — no pre-existing user for the generated email
 
-# When — submit unsupported role value
-HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
-  -H 'Content-Type: application/json' \
-  --data '{"email":"unknown-role@example.com","password":"ValidPass123!","role":"ADMIN"}')"
+# When — register with an unsupported role value
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"ValidPass123!","role":"ADMIN"}" "$BASE_URL/register")
 
-# Then — assert validation failure response
-[ "$HTTP_STATUS" = "400" ]
-jq -e '.error | type == "string" and length > 0' "$RESPONSE_FILE" >/dev/null
+# Then — assert enum validation failure
+[ "$HTTP_CODE" = "400" ]
+grep -F '"error"' "$RESPONSE_FILE" >/dev/null
+if grep -Ei 'role|invalid|enum' "$RESPONSE_FILE" >/dev/null; then :; else cat "$RESPONSE_FILE"; exit 1; fi
 
-echo "CODEVALID_TEST_ASSERTION_OK:invalid_role_value"
+# Cleanup — no reversible public cleanup endpoint available
+
+echo 'CODEVALID_TEST_ASSERTION_OK:invalid_role_value'
