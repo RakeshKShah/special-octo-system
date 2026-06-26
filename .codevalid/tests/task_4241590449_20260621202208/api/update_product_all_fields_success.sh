@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-REGISTER_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"Initial bio\"}" "$BASE_URL/register")
+REGISTER_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"Initial bio\"}" "$BASE_URL/auth/register")
 [ "$REGISTER_CODE" = "201" ] || { echo "expected register 201 got $REGISTER_CODE"; cat "$REGISTER_RESPONSE_FILE"; exit 1; }
 TOKEN=$(jq -r '.token' "$REGISTER_RESPONSE_FILE")
 [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || { echo "missing token"; cat "$REGISTER_RESPONSE_FILE"; exit 1; }

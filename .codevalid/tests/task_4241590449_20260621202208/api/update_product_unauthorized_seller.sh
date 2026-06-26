@@ -20,11 +20,11 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-REGISTER_CODE_1=$(curl -sS -o "$REGISTER_RESPONSE_FILE_1" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL_1\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"Store-A-${CASE_SUFFIX}\",\"bio\":\"Bio-A-${CASE_SUFFIX}\"}" "$BASE_URL/register")
+REGISTER_CODE_1=$(curl -sS -o "$REGISTER_RESPONSE_FILE_1" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL_1\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"Store-A-${CASE_SUFFIX}\",\"bio\":\"Bio-A-${CASE_SUFFIX}\"}" "$BASE_URL/auth/register")
 [ "$REGISTER_CODE_1" = "201" ] || { echo "expected register 1 201 got $REGISTER_CODE_1"; cat "$REGISTER_RESPONSE_FILE_1"; exit 1; }
 TOKEN_1=$(jq -r '.token' "$REGISTER_RESPONSE_FILE_1")
 [ -n "$TOKEN_1" ] && [ "$TOKEN_1" != "null" ] || { echo "missing token 1"; cat "$REGISTER_RESPONSE_FILE_1"; exit 1; }
-REGISTER_CODE_2=$(curl -sS -o "$REGISTER_RESPONSE_FILE_2" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL_2\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"Store-B-${CASE_SUFFIX}\",\"bio\":\"Bio-B-${CASE_SUFFIX}\"}" "$BASE_URL/register")
+REGISTER_CODE_2=$(curl -sS -o "$REGISTER_RESPONSE_FILE_2" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL_2\",\"password\":\"$SELLER_PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"Store-B-${CASE_SUFFIX}\",\"bio\":\"Bio-B-${CASE_SUFFIX}\"}" "$BASE_URL/auth/register")
 [ "$REGISTER_CODE_2" = "201" ] || { echo "expected register 2 201 got $REGISTER_CODE_2"; cat "$REGISTER_RESPONSE_FILE_2"; exit 1; }
 TOKEN_2=$(jq -r '.token' "$REGISTER_RESPONSE_FILE_2")
 [ -n "$TOKEN_2" ] && [ "$TOKEN_2" != "null" ] || { echo "missing token 2"; cat "$REGISTER_RESPONSE_FILE_2"; exit 1; }

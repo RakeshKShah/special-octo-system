@@ -10,17 +10,17 @@ ORDER_ID="order-unauth-${CASE_SUFFIX}"
 BUYER_EMAIL="buyer-unauth-${CASE_SUFFIX}@example.com"
 BUYER_USER_ID=""
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"Order\" WHERE id = '$ORDER_ID'" >/dev/null 2>&1 || true
-  [ -n "$BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$BUYER_USER_ID'" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM orders WHERE id = '$ORDER_ID'" >/dev/null 2>&1 || true
+  [ -n "$BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$BUYER_USER_ID'" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$REGISTER_RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$BUYER_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$BUYER_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 BUYER_USER_ID="$(jq -r '.user.id' "$REGISTER_RESPONSE_FILE")"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"Order\" (id, \"buyerId\", status, \"createdAt\", \"updatedAt\") VALUES ('$ORDER_ID', '$BUYER_USER_ID', 'PAID', NOW(), NOW())" >/dev/null
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO orders (id, buyer_id, status) VALUES ('$ORDER_ID', '$BUYER_USER_ID', 'PAID')" >/dev/null
 
 # When — perform the action under test
 HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST "$BASE_URL/orders/$ORDER_ID/ship")

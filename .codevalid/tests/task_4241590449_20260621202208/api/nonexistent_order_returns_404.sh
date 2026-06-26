@@ -11,17 +11,17 @@ SELLER_EMAIL="seller-missing-${CASE_SUFFIX}@example.com"
 SELLER_TOKEN=""
 SELLER_USER_ID=""
 cleanup() {
-  [ -n "$SELLER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$SELLER_USER_ID'" >/dev/null 2>&1 || true
+  [ -n "$SELLER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$SELLER_USER_ID'" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$REGISTER_RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL\",\"password\":\"Password123!\",\"role\":\"SELLER\",\"storeName\":\"Store $CASE_SUFFIX\",\"bio\":\"Bio $CASE_SUFFIX\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$SELLER_EMAIL\",\"password\":\"Password123!\",\"role\":\"SELLER\",\"storeName\":\"Store $CASE_SUFFIX\",\"bio\":\"Bio $CASE_SUFFIX\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 SELLER_TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
 SELLER_USER_ID="$(jq -r '.user.id' "$REGISTER_RESPONSE_FILE")"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE \"User\" SET status = 'ACTIVE' WHERE id = '$SELLER_USER_ID'" >/dev/null
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE users SET status = 'ACTIVE' WHERE id = '$SELLER_USER_ID'" >/dev/null
 
 # When — perform the action under test
 HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H "Authorization: Bearer $SELLER_TOKEN" "$BASE_URL/orders/$ORDER_ID/ship")

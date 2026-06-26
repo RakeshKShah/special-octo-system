@@ -17,14 +17,14 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — register a seller account, which the API sets to PENDING per call graph
-HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ] || { echo "Expected 201 got $HTTP_CODE"; cat "$REGISTER_FILE"; exit 1; }
 TOKEN=$(jq -r '.token' "$REGISTER_FILE")
 [ "$TOKEN" != "null" ] && [ -n "$TOKEN" ] || { echo 'Expected token in register response'; cat "$REGISTER_FILE"; exit 1; }
 grep -F '"status":"PENDING"' "$REGISTER_FILE" >/dev/null || { echo 'Expected registered seller to be PENDING'; cat "$REGISTER_FILE"; exit 1; }
 
 # When — call the seller dashboard with a non-active seller token
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X GET -H "Authorization: Bearer $TOKEN" "$BASE_URL/dashboard")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X GET -H "Authorization: Bearer $TOKEN" "$BASE_URL/seller/dashboard")
 
 # Then — requireActiveSeller rejects access
 [ "$HTTP_CODE" = "403" ] || { echo "Expected 403 got $HTTP_CODE"; cat "$RESPONSE_FILE"; exit 1; }

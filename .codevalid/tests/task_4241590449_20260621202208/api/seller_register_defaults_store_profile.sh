@@ -14,7 +14,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register a seller without storeName or bio
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"SellerPass123!","role":"SELLER"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"SellerPass123!\",\"role\":\"SELLER\"}" "$BASE_URL/auth/register")
 
 # Then — assert defaults were applied to sellerProfile
 [ "$HTTP_CODE" = "201" ]

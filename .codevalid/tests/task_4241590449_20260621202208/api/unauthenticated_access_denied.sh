@@ -14,7 +14,7 @@ trap cleanup EXIT
 : "case ${CASE_SUFFIX} exercises dashboard without Authorization header"
 
 # When — request the seller dashboard without auth
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X GET "$BASE_URL/dashboard")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X GET "$BASE_URL/seller/dashboard")
 
 # Then — request is rejected by requireAuth middleware
 [ "$HTTP_CODE" = "401" ] || { echo "Expected 401 got $HTTP_CODE"; cat "$RESPONSE_FILE"; exit 1; }
