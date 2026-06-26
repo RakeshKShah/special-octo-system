@@ -14,7 +14,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register a seller with explicit store profile fields
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"SellerPass123!","role":"SELLER","storeName":"Garden Goods","bio":"Fresh from the garden"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"SellerPass123!\",\"role\":\"SELLER\",\"storeName\":\"Garden Goods\",\"bio\":\"Fresh from the garden\"}" "$BASE_URL/auth/register")
 
 # Then — assert seller registration response
 [ "$HTTP_CODE" = "201" ]

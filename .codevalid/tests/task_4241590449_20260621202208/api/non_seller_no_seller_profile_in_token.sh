@@ -15,7 +15,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register a buyer and capture the issued token
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"BuyerPass123!","role":"BUYER"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"BuyerPass123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 
 # Then — assert sellerProfileId is absent or null in the buyer token payload
 [ "$HTTP_CODE" = "201" ]

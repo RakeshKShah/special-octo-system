@@ -13,19 +13,19 @@ SELLER_BETA="cv_seller_beta_${CASE_SUFFIX}"
 SELLER_GAMMA="cv_seller_gamma_${CASE_SUFFIX}"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"Product\" WHERE \"sellerId\" IN ('$SELLER_ALPHA', '$SELLER_BETA', '$SELLER_GAMMA');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE id IN ('$SELLER_ALPHA', '$SELLER_BETA', '$SELLER_GAMMA');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id IN ('$USER_ALPHA', '$USER_BETA', '$USER_GAMMA');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM products WHERE seller_id IN ('$SELLER_ALPHA', '$SELLER_BETA', '$SELLER_GAMMA');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE id IN ('$SELLER_ALPHA', '$SELLER_BETA', '$SELLER_GAMMA');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id IN ('$USER_ALPHA', '$USER_BETA', '$USER_GAMMA');" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"User\" (id, email, \"passwordHash\", role, status, \"createdAt\") VALUES ('$USER_ALPHA', 'alpha-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-01T00:00:00Z'), ('$USER_BETA', 'beta-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-05T00:00:00Z'), ('$USER_GAMMA', 'gamma-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-03T00:00:00Z');"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"SellerProfile\" (id, \"userId\", \"storeName\", bio) VALUES ('$SELLER_ALPHA', '$USER_ALPHA', 'Alpha Store', 'Alpha bio'), ('$SELLER_BETA', '$USER_BETA', 'Beta Store', 'Beta bio'), ('$SELLER_GAMMA', '$USER_GAMMA', 'Gamma Store', 'Gamma bio');"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO users (id, email, password_hash, role, status, created_at) VALUES ('$USER_ALPHA', 'alpha-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-01T00:00:00Z'), ('$USER_BETA', 'beta-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-05T00:00:00Z'), ('$USER_GAMMA', 'gamma-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', TIMESTAMP WITH TIME ZONE '2024-01-03T00:00:00Z');"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO seller_profiles (id, user_id, store_name, bio) VALUES ('$SELLER_ALPHA', '$USER_ALPHA', 'Alpha Store', 'Alpha bio'), ('$SELLER_BETA', '$USER_BETA', 'Beta Store', 'Beta bio'), ('$SELLER_GAMMA', '$USER_GAMMA', 'Gamma Store', 'Gamma bio');"
 
 # When — perform the action under test
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' "$BASE_URL/sellers")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' "$BASE_URL/admin/sellers")
 
 # Then — HTTP/body assertions
 [ "$HTTP_CODE" = "200" ]

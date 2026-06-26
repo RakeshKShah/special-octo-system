@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 TOKEN=$(jq -r '.token' "$REGISTER_FILE")
 [ -n "$TOKEN" ]
