@@ -15,7 +15,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register a seller and capture the issued token
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"SellerPass123!","role":"SELLER","storeName":"Token Shop","bio":"Testing token"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"SellerPass123!\",\"role\":\"SELLER\",store_name:\"Token Shop\",\"bio\":\"Testing token\"}" "$BASE_URL/auth/register")
 
 # Then — assert token payload contains matching sellerProfileId
 [ "$HTTP_CODE" = "201" ]

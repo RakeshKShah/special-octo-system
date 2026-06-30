@@ -14,7 +14,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register with an unsupported role value
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"ValidPass123!","role":"ADMIN"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"ValidPass123!\",\"role\":\"ADMIN\"}" "$BASE_URL/auth/register")
 
 # Then — assert enum validation failure
 [ "$HTTP_CODE" = "400" ]

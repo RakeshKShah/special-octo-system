@@ -15,7 +15,7 @@ curl -sS -o /dev/null "$BASE_URL/health"
 
 # When — send a registration payload with invalid email syntax.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
   --data '{"email":"not-an-email","password":"ValidPass789!","role":"SELLER"}')"
 

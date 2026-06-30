@@ -14,7 +14,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register a seller without storeName or bio
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"SellerPass123!","role":"SELLER"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"SellerPass123!\",\"role\":\"SELLER\"}" "$BASE_URL/auth/register")
 
 # Then — assert defaults were applied to sellerProfile
 [ "$HTTP_CODE" = "201" ]
@@ -22,7 +22,7 @@ grep -F '"token"' "$RESPONSE_FILE" >/dev/null
 grep -F '"email":"'"$TEST_EMAIL"'"' "$RESPONSE_FILE" >/dev/null
 grep -F '"role":"SELLER"' "$RESPONSE_FILE" >/dev/null
 grep -F '"status":"PENDING"' "$RESPONSE_FILE" >/dev/null
-grep -F '"storeName":"My Shop"' "$RESPONSE_FILE" >/dev/null
+grep -F 'store_name:"My Shop"' "$RESPONSE_FILE" >/dev/null
 grep -F '"bio":""' "$RESPONSE_FILE" >/dev/null
 
 # Cleanup — no reversible public cleanup endpoint available

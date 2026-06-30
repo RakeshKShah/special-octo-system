@@ -9,16 +9,16 @@ SELLER_USER_ID="cv_user_new_${CASE_SUFFIX}"
 SELLER_ID="cv_seller_new_${CASE_SUFFIX}"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"Product\" WHERE \"sellerId\" = '$SELLER_ID';" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE id = '$SELLER_ID';" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$SELLER_USER_ID';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM products WHERE seller_id = '$SELLER_ID';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE id = '$SELLER_ID';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$SELLER_USER_ID';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"User\" (id, email, \"passwordHash\", role, status, \"createdAt\") VALUES ('$SELLER_USER_ID', 'fresh-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', NOW());"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"SellerProfile\" (id, \"userId\", \"storeName\", bio) VALUES ('$SELLER_ID', '$SELLER_USER_ID', 'Fresh Start', 'Starting out');"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO users (id, email, password_hash, role, status, created_at) VALUES ('$SELLER_USER_ID', 'fresh-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', NOW());"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO seller_profiles (id, user_id, store_name, bio) VALUES ('$SELLER_ID', '$SELLER_USER_ID', 'Fresh Start', 'Starting out');"
 
 # When — perform the action under test
 HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' "$BASE_URL/sellers")

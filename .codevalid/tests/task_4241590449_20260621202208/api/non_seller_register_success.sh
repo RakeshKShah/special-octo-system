@@ -8,20 +8,20 @@ BUYER_EMAIL="buyer1-${CASE_SUFFIX}@example.com"
 RESPONSE_FILE="/tmp/non_seller_register_success_${CASE_SUFFIX}.json"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${BUYER_EMAIL}');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${BUYER_EMAIL}';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id IN (SELECT id FROM users WHERE email = '${BUYER_EMAIL}');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${BUYER_EMAIL}';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — ensure database reachability and absence of prior rows for this unique buyer email.
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${BUYER_EMAIL}');" >/dev/null 2>&1 || true
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${BUYER_EMAIL}';" >/dev/null 2>&1 || true
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id IN (SELECT id FROM users WHERE email = '${BUYER_EMAIL}');" >/dev/null 2>&1 || true
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${BUYER_EMAIL}';" >/dev/null 2>&1 || true
 
 # When — register a non-seller BUYER account.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
   --data "{\"email\":\"${BUYER_EMAIL}\",\"password\":\"BuyerPass321!\",\"role\":\"BUYER\"}")"
 

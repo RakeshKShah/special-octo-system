@@ -11,22 +11,22 @@ RESPONSE_FILE="/tmp/token_contains_correct_claims_${CASE_SUFFIX}.json"
 TOKEN_PAYLOAD_FILE="/tmp/token_contains_correct_claims_payload_${CASE_SUFFIX}.json"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${SELLER_EMAIL}');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${SELLER_EMAIL}';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id IN (SELECT id FROM users WHERE email = '${SELLER_EMAIL}');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${SELLER_EMAIL}';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$TOKEN_PAYLOAD_FILE"
 }
 trap cleanup EXIT
 
 # Given — ensure database reachability and no prior rows for this unique seller email.
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${SELLER_EMAIL}');" >/dev/null 2>&1 || true
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${SELLER_EMAIL}';" >/dev/null 2>&1 || true
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id IN (SELECT id FROM users WHERE email = '${SELLER_EMAIL}');" >/dev/null 2>&1 || true
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${SELLER_EMAIL}';" >/dev/null 2>&1 || true
 
 # When — register a seller and decode the returned JWT payload without signature verification.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"ClaimsPass!23\",\"role\":\"SELLER\",\"storeName\":\"${STORE_NAME}\",\"bio\":\"${BIO}\"}")"
+  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"ClaimsPass!23\",\"role\":\"SELLER\",store_name:\"${STORE_NAME}\",\"bio\":\"${BIO}\"}")"
 [ "$HTTP_STATUS" = "201" ]
 TOKEN="$(jq -r '.token' "$RESPONSE_FILE")"
 USER_ID="$(jq -r '.user.id' "$RESPONSE_FILE")"

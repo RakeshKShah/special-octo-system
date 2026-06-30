@@ -13,22 +13,22 @@ BUYER_TOKEN=""
 BUYER_USER_ID=""
 ORDER_BUYER_USER_ID=""
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"Order\" WHERE id = '$ORDER_ID'" >/dev/null 2>&1 || true
-  [ -n "$BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$BUYER_USER_ID'" >/dev/null 2>&1 || true
-  [ -n "$ORDER_BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id = '$ORDER_BUYER_USER_ID'" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM orders WHERE id = '$ORDER_ID'" >/dev/null 2>&1 || true
+  [ -n "$BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$BUYER_USER_ID'" >/dev/null 2>&1 || true
+  [ -n "$ORDER_BUYER_USER_ID" ] && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id = '$ORDER_BUYER_USER_ID'" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$REGISTER_RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$AUTH_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$AUTH_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 BUYER_TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
 BUYER_USER_ID="$(jq -r '.user.id' "$REGISTER_RESPONSE_FILE")"
-HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$BUYER_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$BUYER_EMAIL\",\"password\":\"Password123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 ORDER_BUYER_USER_ID="$(jq -r '.user.id' "$REGISTER_RESPONSE_FILE")"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"Order\" (id, \"buyerId\", status, \"createdAt\", \"updatedAt\") VALUES ('$ORDER_ID', '$ORDER_BUYER_USER_ID', 'PAID', NOW(), NOW())" >/dev/null
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO orders (id, buyer_id, status, created_at) VALUES ('$ORDER_ID', '$ORDER_BUYER_USER_ID', 'PAID', NOW())" >/dev/null
 
 # When — perform the action under test
 HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H "Authorization: Bearer $BUYER_TOKEN" "$BASE_URL/orders/$ORDER_ID/ship")
@@ -36,7 +36,7 @@ HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H "Authoriza
 # Then — HTTP/body assertions
 [ "$HTTP_CODE" = "403" ]
 grep -F 'Active seller required' "$RESPONSE_FILE" >/dev/null
-DB_STATUS="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc "SELECT status FROM \"Order\" WHERE id = '$ORDER_ID'")"
+DB_STATUS="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tAc "SELECT status FROM orders WHERE id = '$ORDER_ID'")"
 [ "$DB_STATUS" = "PAID" ]
 
 # Cleanup — undo Given side effects

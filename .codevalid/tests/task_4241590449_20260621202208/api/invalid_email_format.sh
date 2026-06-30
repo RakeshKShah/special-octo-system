@@ -13,7 +13,7 @@ trap cleanup EXIT
 # Given — malformed email input will be used
 
 # When — register with an invalid email format
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"invalid-email","password":"ValidPass123!","role":"BUYER"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"invalid-email\",\"password\":\"ValidPass123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 
 # Then — assert schema validation error
 [ "$HTTP_CODE" = "400" ]

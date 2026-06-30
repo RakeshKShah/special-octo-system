@@ -22,7 +22,7 @@ curl -sS -X POST "$TOXIPROXY_URL/proxies/postgres/toxics" \
 
 # When — attempt seller registration while postgres is unavailable through toxiproxy.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
   --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"DBFailPass!\",\"role\":\"SELLER\"}" || true)"
 

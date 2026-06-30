@@ -27,9 +27,9 @@ trap cleanup EXIT
 # Given — register a unique seller and approve the seller account for listing.
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
 REGISTER_STATUS="$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"${STORE_NAME}\",\"bio\":\"${STORE_BIO}\"}")"
+  --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"role\":\"SELLER\",store_name:\"${STORE_NAME}\",\"bio\":\"${STORE_BIO}\"}")"
 [ "$REGISTER_STATUS" = "201" ]
 TOKEN="$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
 USER_ID="$(sed -n 's/.*"user":{[^}]*"id":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
@@ -49,8 +49,8 @@ HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
 grep -F "\"title\":\"${TITLE}\"" "$RESPONSE_FILE" >/dev/null
 grep -F '"description":"Classic film camera"' "$RESPONSE_FILE" >/dev/null
 grep -F '"category":"Electronics"' "$RESPONSE_FILE" >/dev/null
-grep -F '"priceCents":15999' "$RESPONSE_FILE" >/dev/null
-grep -F '"stockQty":5' "$RESPONSE_FILE" >/dev/null
+grep -F 'price_cents:15999' "$RESPONSE_FILE" >/dev/null
+grep -F 'stock_qty:5' "$RESPONSE_FILE" >/dev/null
 grep -F '"status":"ACTIVE"' "$RESPONSE_FILE" >/dev/null
 grep -F '"visible":true' "$RESPONSE_FILE" >/dev/null
 grep -F '"photos":["photo1.jpg","photo2.jpg"]' "$RESPONSE_FILE" >/dev/null

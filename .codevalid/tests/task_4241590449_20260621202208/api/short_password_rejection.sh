@@ -14,7 +14,7 @@ trap cleanup EXIT
 # Given — no pre-existing user for the generated email
 
 # When — register with a too-short password
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"abc","role":"SELLER"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"abc\",\"role\":\"SELLER\"}" "$BASE_URL/auth/register")
 
 # Then — assert password validation failure
 [ "$HTTP_CODE" = "400" ]

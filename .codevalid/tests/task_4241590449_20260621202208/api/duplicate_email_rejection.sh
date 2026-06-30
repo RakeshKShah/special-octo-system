@@ -13,11 +13,11 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — create an existing user with the same email through the public API
-SETUP_HTTP_CODE=$(curl -sS -o "$SETUP_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"BuyerPass123!","role":"BUYER"}" "$BASE_URL/register")
+SETUP_HTTP_CODE=$(curl -sS -o "$SETUP_RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"BuyerPass123!\",\"role\":\"BUYER\"}" "$BASE_URL/auth/register")
 [ "$SETUP_HTTP_CODE" = "201" ]
 
 # When — attempt to register another account with the duplicate email
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{"email":"$TEST_EMAIL","password":"AnotherPass1!","role":"SELLER","storeName":"Duplicate Shop","bio":"duplicate attempt"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"AnotherPass1!\",\"role\":\"SELLER\",store_name:\"Duplicate Shop\",\"bio\":\"duplicate attempt\"}" "$BASE_URL/auth/register")
 
 # Then — assert duplicate email rejection
 [ "$HTTP_CODE" = "400" ]

@@ -9,22 +9,22 @@ RESPONSE_FILE="/tmp/seller_register_duplicate_email_error_${CASE_SUFFIX}.json"
 SEED_FILE="/tmp/seller_register_duplicate_email_seed_${CASE_SUFFIX}.json"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE \"userId\" IN (SELECT id FROM \"User\" WHERE email = '${EXISTING_EMAIL}');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE email = '${EXISTING_EMAIL}';" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE user_id IN (SELECT id FROM users WHERE email = '${EXISTING_EMAIL}');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE email = '${EXISTING_EMAIL}';" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE" "$SEED_FILE"
 }
 trap cleanup EXIT
 
 # Given — create an existing account for the target email using the public registration API.
 SEED_STATUS="$(curl -sS -o "$SEED_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
   --data "{\"email\":\"${EXISTING_EMAIL}\",\"password\":\"Password123!\",\"role\":\"BUYER\"}")"
 [ "$SEED_STATUS" = "201" ]
 
 # When — attempt to register again with the same email.
 HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
   --data "{\"email\":\"${EXISTING_EMAIL}\",\"password\":\"Password123!\",\"role\":\"SELLER\"}")"
 

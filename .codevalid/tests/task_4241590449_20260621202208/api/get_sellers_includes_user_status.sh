@@ -11,16 +11,16 @@ SELLER_ACTIVE="cv_seller_active_${CASE_SUFFIX}"
 SELLER_SUSPENDED="cv_seller_suspended_${CASE_SUFFIX}"
 
 cleanup() {
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"Product\" WHERE \"sellerId\" IN ('$SELLER_ACTIVE', '$SELLER_SUSPENDED');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"SellerProfile\" WHERE id IN ('$SELLER_ACTIVE', '$SELLER_SUSPENDED');" >/dev/null 2>&1 || true
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM \"User\" WHERE id IN ('$USER_ACTIVE', '$USER_SUSPENDED');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM products WHERE seller_id IN ('$SELLER_ACTIVE', '$SELLER_SUSPENDED');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM seller_profiles WHERE id IN ('$SELLER_ACTIVE', '$SELLER_SUSPENDED');" >/dev/null 2>&1 || true
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM users WHERE id IN ('$USER_ACTIVE', '$USER_SUSPENDED');" >/dev/null 2>&1 || true
   rm -f "$RESPONSE_FILE"
 }
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"User\" (id, email, \"passwordHash\", role, status, \"createdAt\") VALUES ('$USER_ACTIVE', 'active-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', NOW()), ('$USER_SUSPENDED', 'suspended-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'SUSPENDED', NOW() - INTERVAL '1 day');"
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO \"SellerProfile\" (id, \"userId\", \"storeName\", bio) VALUES ('$SELLER_ACTIVE', '$USER_ACTIVE', 'Active Store', 'Active bio'), ('$SELLER_SUSPENDED', '$USER_SUSPENDED', 'Suspended Store', 'Suspended bio');"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO users (id, email, password_hash, role, status, created_at) VALUES ('$USER_ACTIVE', 'active-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'ACTIVE', NOW()), ('$USER_SUSPENDED', 'suspended-${CASE_SUFFIX}@example.com', 'hash', 'SELLER', 'SUSPENDED', NOW() - INTERVAL '1 day');"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO seller_profiles (id, user_id, store_name, bio) VALUES ('$SELLER_ACTIVE', '$USER_ACTIVE', 'Active Store', 'Active bio'), ('$SELLER_SUSPENDED', '$USER_SUSPENDED', 'Suspended Store', 'Suspended bio');"
 
 # When — perform the action under test
 HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' "$BASE_URL/sellers")
