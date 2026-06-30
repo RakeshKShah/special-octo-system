@@ -13,7 +13,7 @@ trap cleanup EXIT
 # Given — no specific setup required
 
 # When — submit an empty registration payload
-HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{}" "$BASE_URL/auth/register")
 
 # Then — assert validation failure is returned
 [ "$HTTP_CODE" = "400" ]

@@ -26,9 +26,9 @@ trap cleanup EXIT
 # Given — register and activate a unique seller.
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;' >/dev/null
 REGISTER_STATUS="$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"${STORE_NAME}\",\"bio\":\"sold out\"}")"
+  --data "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"role\":\"SELLER\",store_name:\"${STORE_NAME}\",\"bio\":\"sold out\"}")"
 [ "$REGISTER_STATUS" = "201" ]
 TOKEN="$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
 USER_ID="$(sed -n 's/.*"user":{[^}]*"id":"\([^"]*\)".*/\1/p' "$REGISTER_FILE" | head -n 1)"
@@ -46,7 +46,7 @@ HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' \
 # Then — response is 201 and product status is SOLD_OUT with visible=true.
 [ "$HTTP_STATUS" = "201" ]
 grep -F "\"title\":\"${TITLE}\"" "$RESPONSE_FILE" >/dev/null
-grep -F '"stockQty":0' "$RESPONSE_FILE" >/dev/null
+grep -F 'stock_qty:0' "$RESPONSE_FILE" >/dev/null
 grep -F '"status":"SOLD_OUT"' "$RESPONSE_FILE" >/dev/null
 grep -F '"visible":true' "$RESPONSE_FILE" >/dev/null
 

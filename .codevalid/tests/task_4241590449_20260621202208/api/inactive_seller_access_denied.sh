@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — register a seller account, which the API sets to PENDING per call graph
-HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",store_name:\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ] || { echo "Expected 201 got $HTTP_CODE"; cat "$REGISTER_FILE"; exit 1; }
 TOKEN=$(jq -r '.token' "$REGISTER_FILE")
 [ "$TOKEN" != "null" ] && [ -n "$TOKEN" ] || { echo 'Expected token in register response'; cat "$REGISTER_FILE"; exit 1; }

@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Given — bring the system to the required state
-HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",\"storeName\":\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/register")
+HTTP_CODE=$(curl -sS -o "$REGISTER_FILE" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"role\":\"SELLER\",store_name:\"$STORE_NAME\",\"bio\":\"$BIO\"}" "$BASE_URL/auth/register")
 [ "$HTTP_CODE" = "201" ]
 TOKEN=$(jq -r '.token' "$REGISTER_FILE")
 [ -n "$TOKEN" ]
@@ -35,7 +35,7 @@ HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' -X POST -H 'Content-T
 # Then — HTTP/body assertions
 [ "$HTTP_CODE" = "201" ]
 grep -F "$PRODUCT_TITLE" "$RESPONSE_FILE" >/dev/null
-grep -F '"stockQty":0' "$RESPONSE_FILE" >/dev/null
+grep -F 'stock_qty:0' "$RESPONSE_FILE" >/dev/null
 grep -F '"status":"SOLD_OUT"' "$RESPONSE_FILE" >/dev/null
 
 # Cleanup — undo Given side effects

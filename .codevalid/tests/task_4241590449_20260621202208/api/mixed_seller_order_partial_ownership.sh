@@ -15,9 +15,9 @@ trap cleanup_files EXIT
 
 # Given — register a unique seller account and capture its bearer token.
 REGISTER_STATUS="$(curl -sS -o "$REGISTER_RESPONSE_FILE" -w '%{http_code}' \
-  -X POST "$BASE_URL/register" \
+  -X POST "$BASE_URL/auth/register" \
   -H 'Content-Type: application/json' \
-  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"${SELLER_PASSWORD}\",\"role\":\"SELLER\",\"storeName\":\"Mixed ${CASE_SUFFIX}\",\"bio\":\"bio-${CASE_SUFFIX}\"}")"
+  --data "{\"email\":\"${SELLER_EMAIL}\",\"password\":\"${SELLER_PASSWORD}\",\"role\":\"SELLER\",store_name:\"Mixed ${CASE_SUFFIX}\",\"bio\":\"bio-${CASE_SUFFIX}\"}")"
 [ "$REGISTER_STATUS" = "201" ]
 TOKEN="$(jq -r '.token' "$REGISTER_RESPONSE_FILE")"
 [ "$TOKEN" != "null" ]
